@@ -51,11 +51,11 @@ bool mark_ecn_or_drop(struct rte_mbuf *m) {
         struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
         uint8_t ecn = ip_hdr->type_of_service & RTE_IPV4_HDR_ECN_MASK;
 		// Check ECN capable
-        if (ecn == RTE_IPV4_HDR_ECN_NOT_ECT) {
+        if (ecn == 0x00) {
             rte_pktmbuf_free(m);
             return false;
         }
-        if (ecn != RTE_IPV4_HDR_ECN_CE) {
+        if (ecn != 0x03) {
             ip_hdr->type_of_service |= RTE_IPV4_HDR_ECN_CE;
             // Update checksum (Perhaps change to incremental checksum update for better performance)
             ip_hdr->hdr_checksum = 0;
@@ -69,7 +69,7 @@ bool mark_ecn_or_drop(struct rte_mbuf *m) {
         uint32_t vtc_flow = rte_be_to_cpu_32(ip_hdr->vtc_flow);
         uint8_t ecn = (vtc_flow >> 20) & 0x03;
 		// Check ECN capable
-        if (ecn == 0) { /
+        if (ecn == 0) { 
             rte_pktmbuf_free(m);
             return false;
         }
