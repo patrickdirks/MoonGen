@@ -26,6 +26,8 @@ void set_burst_size_dynfield(struct rte_mbuf *m, uint64_t burst_size){
 	*RTE_MBUF_DYNFIELD(m, burst_size_field_offset, uint32_t*) = burst_size;	
 }
 
+
+
 extern "C" void init_dynfield_burst_size_offset(){
 	burst_size_field_offset = rte_mbuf_dynfield_lookup("dynfield_burst_size", NULL);
 
@@ -38,6 +40,51 @@ extern "C" void init_dynfield_burst_size_offset(){
 		};
 		burst_size_field_offset = rte_mbuf_dynfield_register(&dynfield_burst_size_desc);
 	}
+}
+
+bool mark_ecn_or_drop(struct rte_mbuf *m) {
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(m, struct rte_ether_hdr *);
+    uint16_t ether_type = rte_be_to_cpu_16(eth_hdr->ether_type);
+
+    // IPv4
+    if (ether_type == RTE_ETHER_TYPE_IPV4) {
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        uint8_t ecn = ip_hdr->type_of_service & RTE_IPV4_HDR_ECN_MASK;
+		// Check ECN capable
+        if (ecn == RTE_IPV4_HDR_ECN_NOT_ECT) {
+            rte_pktmbuf_free(m);
+            return false;
+        }
+        if (ecn != RTE_IPV4_HDR_ECN_CE) {
+            ip_hdr->type_of_service |= RTE_IPV4_HDR_ECN_CE;
+            // Update checksum (Perhaps change to incremental checksum update for better performance)
+            ip_hdr->hdr_checksum = 0;
+            ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+        }
+    } 
+    // IPv6
+    else if (ether_type == RTE_ETHER_TYPE_IPV6) {
+        struct rte_ipv6_hdr *ip_hdr = (struct rte_ipv6_hdr *)(eth_hdr + 1);
+  
+        uint32_t vtc_flow = rte_be_to_cpu_32(ip_hdr->vtc_flow);
+        uint8_t ecn = (vtc_flow >> 20) & 0x03;
+		// Check ECN capable
+        if (ecn == 0) { /
+            rte_pktmbuf_free(m);
+            return false;
+        }
+        if (ecn != 0x03) { 
+            vtc_flow |= (0x03 << 20);
+            ip_hdr->vtc_flow = rte_cpu_to_be_32(vtc_flow);
+        }
+    }
+	// Drop if not IP traffic (should not happen)
+    else {
+        rte_pktmbuf_free(m);
+        return false;
+    }
+
+    return true;
 }
 
 extern "C" void sw_receiver_loop_fwd(int port_id_rx, int queue_id_rx, int port_id_tx, int queue_id_tx, struct moonem_config config){
@@ -143,8 +190,10 @@ extern "C" void sw_receiver_loop_rate_token_bucket(int port_id, int queue_id, st
 
 extern "C" void sw_receiver_loop_rate_leaky_bucket(int port_id, int queue_id, struct rte_ring* packet_ring, struct moonem_config config){
 	uint64_t delay = rte_get_tsc_hz() * (config.delay / 1000000000.0d);
+	const double MAX_TIME_IN_QUEUE_SECONDS = 0.005;
 	const double B_P_TSC_TARGET = config.rate * 1000000.0d / rte_get_tsc_hz();
 	const double BACKLOG_BOUND = config.capacity / (B_P_TSC_TARGET / 8);
+	const double MAX_TIME_IN_QUEUE = rte_get_tsc_hz() * MAX_TIME_IN_QUEUE_SECONDS;
 
 	struct rte_mbuf* bufs[BURST_SIZE];
 	struct rte_mbuf* bufs_accept[BURST_SIZE];
@@ -167,6 +216,12 @@ extern "C" void sw_receiver_loop_rate_leaky_bucket(int port_id, int queue_id, st
 					rte_pktmbuf_free(bufs[i]);
 					continue;
 				}
+
+				if (backlog > MAX_TIME_IN_QUEUE) {
+                    if (!mark_ecn_or_drop(bufs[i])) {
+                        continue; 
+                    }
+                }
 
 				next_at = real_send_time + ((effective_packet_size * 8.0d) / B_P_TSC_TARGET);
 
