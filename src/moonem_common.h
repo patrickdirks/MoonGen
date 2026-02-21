@@ -17,6 +17,7 @@ struct moonem_config {
 	enum loss_type loss_type;
 	uint64_t loss;
 	uint64_t loss_model_parameters[5];
+	uint64_t ce_threshold;
 };
 
 #define BURST_SIZE 64

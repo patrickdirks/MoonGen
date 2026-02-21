@@ -22,6 +22,7 @@ function configure(parser)
 	parser:option("-l --loss", "Packet loss (in %)."):default(0):convert(tonumber)
 	parser:option("-g --ge-loss", "Packet loss parameters for Gilbert-Elliot model (p [r [1-h [1-k]]])."):args("+"):convert(tonumber)
 	parser:option("-n --netem-loss", "Packet loss parameters for NetEm model (p13,p31,p32,p23,p14)."):args("+"):convert(tonumber)
+	parser:option("-e --ce-threshold", "CE threshold (in us)."):default(0):convert(tonumber)
 
 	-- Invalid packet based Latency
 	parser:flag("--hardware", "Using interspersed invalid packets to achive high precision latency emulation")
@@ -54,6 +55,7 @@ ffi.cdef[[
 		enum loss_type loss_type;
 		uint64_t loss;
 		uint64_t loss_model_parameters[8];
+		uint64_t ce_threshold;
 	};
 
 	void receiver_loop_delay(int port_id, int queue_id, struct rte_ring* packet_ring, struct moonem_config config);
@@ -97,6 +99,7 @@ function master(args)
 		rate = args.rate,
 		capacity = args.capacity,
 		loss_seed = args.seed,
+		ce_threshold = args.ce_threshold 
 	})
 
 	-- perpare loss parameters depending on the configured loss model

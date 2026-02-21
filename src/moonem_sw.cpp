@@ -190,7 +190,7 @@ extern "C" void sw_receiver_loop_rate_token_bucket(int port_id, int queue_id, st
 
 extern "C" void sw_receiver_loop_rate_leaky_bucket(int port_id, int queue_id, struct rte_ring* packet_ring, struct moonem_config config){
 	uint64_t delay = rte_get_tsc_hz() * (config.delay / 1000000000.0d);
-	const double MAX_TIME_IN_QUEUE_SECONDS = 0.002;
+	const double MAX_TIME_IN_QUEUE_SECONDS = (config.ce_threshold / 10000000.0d);
 	const double B_P_TSC_TARGET = config.rate * 1000000.0d / rte_get_tsc_hz();
 	const double BACKLOG_BOUND = config.capacity / (B_P_TSC_TARGET / 8);
 	const double MAX_TIME_IN_QUEUE = rte_get_tsc_hz() * MAX_TIME_IN_QUEUE_SECONDS;
@@ -217,7 +217,7 @@ extern "C" void sw_receiver_loop_rate_leaky_bucket(int port_id, int queue_id, st
 					continue;
 				}
 
-				if (backlog > MAX_TIME_IN_QUEUE) {
+				if (MAX_TIME_IN_QUEUE > 0 && backlog > MAX_TIME_IN_QUEUE) {
                     if (!mark_ecn_or_drop(bufs[i])) {
                         continue; 
                     }
