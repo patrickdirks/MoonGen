@@ -22,7 +22,7 @@ function configure(parser)
 	parser:option("-l --loss", "Packet loss (in %)."):default(0):convert(tonumber)
 	parser:option("-g --ge-loss", "Packet loss parameters for Gilbert-Elliot model (p [r [1-h [1-k]]])."):args("+"):convert(tonumber)
 	parser:option("-n --netem-loss", "Packet loss parameters for NetEm model (p13,p31,p32,p23,p14)."):args("+"):convert(tonumber)
-	parser:option("-e --ce-threshold", "CE threshold (in us)."):default(0):convert(tonumber)
+
 
 	-- Invalid packet based Latency
 	parser:flag("--hardware", "Using interspersed invalid packets to achive high precision latency emulation")
@@ -33,6 +33,7 @@ function configure(parser)
 
 	-- Misc Settings
 	parser:option("--buffer-size", "Amount of memory to use for buffering packets per direction (in GB)"):default(0):convert(tonumber)
+	parser:option("--ce-threshold", "CE threshold (in us)."):default(0):convert(tonumber)
 	parser:option("--seed", "Seed for the random number generator used for packet loss"):default(12345):convert(tonumber)
 	parser:option("-t --threads", "Number of threads to use per direction. Cannot be used when using hardware delay functionality!"):default(1):convert(tonumber)
 	parser:flag("-u --unidirectional", "Only forward traffic in one direction (from dev1 to dev2)")

@@ -199,7 +199,7 @@ extern "C" void sw_receiver_loop_rate_leaky_bucket(int port_id, int queue_id, st
 	struct rte_mbuf* bufs_accept[BURST_SIZE];
 	double next_at = 0;
 	uint64_t loss_state = config.loss_seed;
-	printf("ce_threshold raw: %lu, max_time_in_queue: %f\n", config.ce_threshold, MAX_TIME_IN_QUEUE_SECONDS);	while (is_running(0)) {
+	//printf("ce_threshold raw: %lu, max_time_in_queue: %f\n", config.ce_threshold, MAX_TIME_IN_QUEUE_SECONDS);	while (is_running(0)) {
 		uint16_t rx = rte_eth_rx_burst(port_id, queue_id, bufs, BURST_SIZE);
 		if(rx > 0){
 			uint64_t recv_timestamp = rte_rdtsc();
